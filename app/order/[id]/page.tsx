@@ -61,7 +61,7 @@ export default function OrderStatusPage() {
   }, [order]);
 
   const handleNewOrder = () => {
-    router.push('/');
+    router.push('/customer_order');
   };
 
   if (loading) {

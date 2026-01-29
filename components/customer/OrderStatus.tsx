@@ -12,37 +12,70 @@ interface OrderStatusProps {
 
 export default function OrderStatus({ order, onNewOrder }: OrderStatusProps) {
   const getStatusStep = () => {
-    switch (order.status) {
-      case 'pending': return 0;
-      case 'confirmed': return 1;
-      case 'preparing': return 2;
-      case 'ready': return 3;
-      default: return 0;
-    }
+    
+    return getStatusSteps().length - 1;
   };
 
-  const statusSteps = [
-    {
-      title: 'ส่งออเดอร์',
-      content: formatTime(order.createdAt),
-      icon: <SendOutlined />
-    },
-    {
-      title: 'ร้านยืนยัน',
-      content: order.status !== 'pending' ? '✓ ยืนยันแล้ว' : <LoadingOutlined />,
-      icon: <CheckCircleOutlined />
-    },
-    {
-      title: 'กำลังทำ',
-      content: order.status === 'preparing' || order.status === 'ready' ? '✓ ยืนยันแล้ว' : <LoadingOutlined />,
-      icon: <CheckCircleOutlined />
-    },
-    {
-      title: 'พร้อมรับ',
-      content: order.status === 'ready' ? '✓ พร้อมรับแล้ว!' : '-',
-      icon: <SmileOutlined />
+  const getStatusSteps = () => {
+    
+    // confirmed/preparing: แสดง "ส่งออเดอร์" + "ร้านยืนยันแล้ว" + "กำลังทำ" (with loading)
+    
+    
+    const baseSteps = [
+      {
+        title: 'ส่งออเดอร์',
+        content: formatTime(order.createdAt),
+        icon: <SendOutlined />
+      }
+    ];
+
+    if (order.status === 'pending') {
+      return [
+        ...baseSteps,
+        {
+          title: 'ร้านกำลังยืนยันออเดอร์',
+          content: <span className="text-gray-400">กรุณารอสักครู่...</span>,
+          icon: <LoadingOutlined />
+        }
+      ];
     }
-  ];
+
+    if (order.status === 'confirmed' || order.status === 'preparing') {
+      return [
+        ...baseSteps,
+        {
+          title: 'ร้านยืนยันแล้ว',
+          content: '✓ ยืนยันออเดอร์แล้ว',
+          icon: <CheckCircleOutlined />
+        },
+        {
+          title: 'กำลังทำ',
+          content: <span className="text-gray-400">กำลังเตรียมออเดอร์...</span>,
+          icon: <LoadingOutlined />
+        }
+      ];
+    }
+
+    if (order.status === 'ready') {
+      return [
+        ...baseSteps,
+        {
+          title: 'ร้านยืนยันแล้ว',
+          content: '✓ ยืนยันออเดอร์แล้ว',
+          icon: <CheckCircleOutlined />
+        },
+        {
+          title: <span style={{ color: '#C67C4E' }}>พร้อมรับ</span>,
+          content: <span style={{ color: '#C67C4E' }}>✓ พร้อมรับแล้ว!</span>,
+          icon: <SmileOutlined style={{ color: '#C67C4E' }} />
+        }
+      ];
+    }
+
+    return baseSteps;
+  };
+
+  const statusSteps = getStatusSteps();
 
   return (
     <>
@@ -71,7 +104,7 @@ export default function OrderStatus({ order, onNewOrder }: OrderStatusProps) {
             orientation="vertical"
             current={getStatusStep()}
             items={statusSteps}
-            className='px-10'
+            className='px-10 custom-steps'
           />
           {order.status === 'ready' && (
             <div className="mt-10 p-3 rounded-lg text-center" 

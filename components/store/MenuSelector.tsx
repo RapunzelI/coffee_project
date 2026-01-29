@@ -16,7 +16,7 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
   const [items, setItems] = useState<CartItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     menuId: null as string | null,
-    type: 'hot' as 'hot' | 'iced' | 'blended',
+    type: 'iced' as 'hot' | 'iced' | 'blended',
     milk: 'fresh' as 'fresh' | 'oat' | 'almond' | 'soy',
     toppings: [] as string[],
     quantity: 1,
@@ -71,7 +71,7 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
     // รีเซ็ตฟอร์ม
     setCurrentItem({
       menuId: null,
-      type: 'hot',
+      type: 'iced',
       milk: 'fresh',
       toppings: [],
       quantity: 1,

@@ -33,12 +33,15 @@ export default function RootLayout({
             controlItemBgActive: '#c67c4e94',
             colorWarningBorderHover: '#1a1a1a',
             controlOutline: 'null',
+            
           }
         }}>
           
-            <AntdRegistry><App>
-              {children}
-            </App></AntdRegistry>
+            <AntdRegistry>
+              <App>
+                {children}
+              </App>
+            </AntdRegistry>
         </ConfigProvider>
       </body>
     </html>

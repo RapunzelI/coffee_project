@@ -102,7 +102,8 @@ export default function AdminPage() {
 
   const handleConfirmOrder = (items: CartItem[], totalPrice: number) => {
     if (selectedOrder) {
-      updateOrderStatus(selectedOrder._id, 'confirmed', items, totalPrice);
+      // เปลี่ยนจาก 'confirmed' เป็น 'preparing' เพื่อข้าม step "ยืนยันแล้ว"
+      updateOrderStatus(selectedOrder._id, 'preparing', items, totalPrice);
       setSelectedOrder(null);
       setShowMenuSelector(false);
     }

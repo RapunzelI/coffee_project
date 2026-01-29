@@ -33,7 +33,7 @@ export default function OrderForm({
           showCount
           maxLength={500}
           style={{
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#000000',
             color: '#ffffff',
             borderColor: '#404040',
           }}

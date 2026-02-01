@@ -3,16 +3,24 @@
 import { useState } from 'react';
 import { Form, Select, InputNumber, Checkbox, Button, Divider, Space, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { MENU_ITEMS, MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/data/menu';
-import { CartItem } from '@/types/order';
+import { MENU_ITEMS, MENU_TYPES } from '@/data/menu';
+import { CartItem, MilkOption, Topping } from '@/types/order';
 
 interface MenuSelectorProps {
   orderText: string;
   onConfirm: (items: CartItem[], totalPrice: number) => void;
   onCancel: () => void;
+  milkOptions: MilkOption[];
+  toppings: Topping[];
 }
 
-export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSelectorProps) {
+export default function MenuSelector({ 
+  orderText, 
+  onConfirm, 
+  onCancel,
+  milkOptions,
+  toppings 
+}: MenuSelectorProps) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     menuId: null as string | null,
@@ -23,6 +31,10 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
     specialNote: ''
   });
 
+  // กรองเฉพาะตัวเลือกที่ available
+  const availableMilkOptions = milkOptions.filter(m => m.available);
+  const availableToppings = toppings.filter(t => t.available);
+
   // คำนวณราคาของรายการปัจจุบัน
   const calculateItemPrice = () => {
     if (!currentItem.menuId) return 0;
@@ -31,9 +43,9 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
     if (!menu) return 0;
 
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
-    const milk = MILK_OPTIONS.find(m => m.value === currentItem.milk);
+    const milk = milkOptions.find(m => m.value === currentItem.milk);
     const toppingPrices = currentItem.toppings.reduce((sum, toppingId) => {
-      const topping = TOPPINGS.find(t => t.id === toppingId);
+      const topping = toppings.find(t => t.id === toppingId);
       return sum + (topping?.price || 0);
     }, 0);
 
@@ -49,7 +61,7 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
     if (!menu) return;
 
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
-    const milk = MILK_OPTIONS.find(m => m.value === currentItem.milk);
+    const milk = milkOptions.find(m => m.value === currentItem.milk);
     const basePrice = calculateItemPrice() / currentItem.quantity;
 
     const newItem: CartItem = {
@@ -58,7 +70,7 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
       type: menuType?.label || 'ร้อน',
       milk: milk?.label || 'นมสด',
       toppings: currentItem.toppings.map(id => {
-        const topping = TOPPINGS.find(t => t.id === id);
+        const topping = toppings.find(t => t.id === id);
         return topping?.name || '';
       }),
       quantity: currentItem.quantity,
@@ -118,7 +130,6 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
               label: `${item.name} - ${item.basePrice}฿`,
               value: item.id
             }))}
-            
           />
         </Form.Item>
 
@@ -137,26 +148,35 @@ export default function MenuSelector({ orderText, onConfirm, onCancel }: MenuSel
           <Select
             value={currentItem.milk}
             onChange={(value) => setCurrentItem({ ...currentItem, milk: value })}
-            options={MILK_OPTIONS.map(milk => ({
+            options={availableMilkOptions.map(milk => ({
               label: `${milk.label}${milk.price > 0 ? ` (+${milk.price}฿)` : ''}`,
               value: milk.value
             }))}
+            disabled={availableMilkOptions.length === 0}
+            placeholder={availableMilkOptions.length === 0 ? 'ไม่มีนมที่พร้อมให้บริการ' : 'เลือกชนิดนม'}
           />
+          {availableMilkOptions.length === 0 && (
+            <p className="text-xs text-red-500 mt-1">ไม่มีนมที่พร้อมให้บริการในขณะนี้</p>
+          )}
         </Form.Item>
 
         <Form.Item label="ท็อปปิ้ง">
-          <Checkbox.Group
-            value={currentItem.toppings}
-            onChange={(values) => setCurrentItem({ ...currentItem, toppings: values as string[] })}
-          >
-            <Space orientation="vertical">
-              {TOPPINGS.map(topping => (
-                <Checkbox key={topping.id} value={topping.id}>
-                  {topping.name} (+{topping.price}฿)
-                </Checkbox>
-              ))}
-            </Space>
-          </Checkbox.Group>
+          {availableToppings.length > 0 ? (
+            <Checkbox.Group
+              value={currentItem.toppings}
+              onChange={(values) => setCurrentItem({ ...currentItem, toppings: values as string[] })}
+            >
+              <Space direction="vertical">
+                {availableToppings.map(topping => (
+                  <Checkbox key={topping.id} value={topping.id}>
+                    {topping.name} (+{topping.price}฿)
+                  </Checkbox>
+                ))}
+              </Space>
+            </Checkbox.Group>
+          ) : (
+            <p className="text-sm text-gray-500">ไม่มีท็อปปิ้งที่พร้อมให้บริการในขณะนี้</p>
+          )}
         </Form.Item>
 
         <Form.Item label="จำนวน">

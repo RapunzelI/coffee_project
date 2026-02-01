@@ -1,9 +1,8 @@
 'use client';
 
 import { Modal, Radio, Select, Checkbox, InputNumber, Input, Divider } from 'antd';
-import { CartItem } from '@/types/order';
-import { MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/constants/menu';
-import { calculateItemPrice } from '@/utils/priceCalculator';
+import { CartItem, MilkOption, Topping } from '@/types/order';
+import { MENU_TYPES } from '@/data/menu';
 
 interface ItemEditModalProps {
   item: CartItem | null;
@@ -11,6 +10,8 @@ interface ItemEditModalProps {
   onSave: () => void;
   onCancel: () => void;
   onChange: (item: CartItem) => void;
+  milkOptions: MilkOption[];
+  toppings: Topping[];
 }
 
 export default function ItemEditModal({
@@ -18,9 +19,29 @@ export default function ItemEditModal({
   open,
   onSave,
   onCancel,
-  onChange
+  onChange,
+  milkOptions,
+  toppings
 }: ItemEditModalProps) {
   if (!item) return null;
+
+  // กรองเฉพาะตัวเลือกที่ available
+  const availableMilkOptions = milkOptions.filter(m => m.available);
+  const availableToppings = toppings.filter(t => t.available);
+
+  // คำนวณราคารายการ
+  const calculateItemPrice = (item: CartItem) => {
+    const menuType = MENU_TYPES.find(t => t.label === item.type);
+    const milk = milkOptions.find(m => m.label === item.milk);
+    
+    const toppingPrices = item.toppings.reduce((sum, toppingName) => {
+      const topping = toppings.find(t => t.name === toppingName);
+      return sum + (topping?.price || 0);
+    }, 0);
+
+    const basePrice = item.basePrice + (menuType?.price || 0) + (milk?.price || 0) + toppingPrices;
+    return basePrice * item.quantity;
+  };
 
   return (
     <Modal
@@ -47,7 +68,7 @@ export default function ItemEditModal({
           >
             <div className="flex flex-col gap-2">
               {MENU_TYPES.map(t => (
-                <Radio key={t.value} value={t.value}>
+                <Radio key={t.value} value={t.label}>
                   <div className="inline-flex gap-2">
                     <span>{t.label}</span>
                     {t.price > 0 && (
@@ -62,34 +83,46 @@ export default function ItemEditModal({
 
         <div>
           <p className="font-semibold mb-2">เปลี่ยนชนิดนม</p>
-          <Select
-            value={item.milk}
-            onChange={(value) => onChange({ ...item, milk: value })}
-            className="w-full"
-          >
-            {MILK_OPTIONS.map(m => (
-              <Select.Option key={m.value} value={m.value}>
-                {m.label} {m.price > 0 ? `+${m.price} ฿` : ''}
-              </Select.Option>
-            ))}
-          </Select>
+          {availableMilkOptions.length > 0 ? (
+            <Select
+              value={item.milk}
+              onChange={(value) => onChange({ ...item, milk: value })}
+              className="w-full"
+            >
+              {availableMilkOptions.map(m => (
+                <Select.Option key={m.value} value={m.label}>
+                  {m.label} {m.price > 0 ? `+${m.price} ฿` : ''}
+                </Select.Option>
+              ))}
+            </Select>
+          ) : (
+            <div className="p-3 bg-gray-100 rounded text-sm text-gray-500">
+              ไม่มีนมที่พร้อมให้บริการในขณะนี้
+            </div>
+          )}
         </div>
 
         <div>
           <p className="font-semibold mb-2">เลือกท็อปปิ้ง</p>
-          <Checkbox.Group
-            value={item.toppings}
-            onChange={(values) => onChange({ ...item, toppings: values as string[] })}
-            className="w-full"
-          >
-            <div className="flex flex-col gap-2">
-              {TOPPINGS.map(t => (
-                <Checkbox key={t.id} value={t.id}>
-                  {t.name} <span className="text-gray-400">+{t.price} ฿</span>
-                </Checkbox>
-              ))}
+          {availableToppings.length > 0 ? (
+            <Checkbox.Group
+              value={item.toppings}
+              onChange={(values) => onChange({ ...item, toppings: values as string[] })}
+              className="w-full"
+            >
+              <div className="flex flex-col gap-2">
+                {availableToppings.map(t => (
+                  <Checkbox key={t.id} value={t.name}>
+                    {t.name} <span className="text-gray-400">+{t.price} ฿</span>
+                  </Checkbox>
+                ))}
+              </div>
+            </Checkbox.Group>
+          ) : (
+            <div className="p-3 bg-gray-100 rounded text-sm text-gray-500">
+              ไม่มีท็อปปิ้งที่พร้อมให้บริการในขณะนี้
             </div>
-          </Checkbox.Group>
+          )}
         </div>
 
         <div>

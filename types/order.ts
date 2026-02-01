@@ -28,6 +28,7 @@ export interface MenuItem {
   id: string;
   name: string;
   basePrice: number;
+  available: boolean; // เพิ่มมานี้สำหรับเปิด/ปิดเมนู
 }
 
 export interface MenuType {
@@ -40,10 +41,12 @@ export interface MilkOption {
   value: 'fresh' | 'oat' | 'almond' | 'soy';
   label: string;
   price: number;
+  available: boolean; // เพิ่มสำหรับเปิด/ปิดนม
 }
 
 export interface Topping {
   id: string;
   name: string;
   price: number;
+  available: boolean; // เพิ่มสำหรับเปิด/ปิดท็อปปิ้ง
 }

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Spin, Modal, App } from 'antd';
+import { Card, Spin, Modal, App, Switch, Divider, Tabs } from 'antd';
 import OrderList from '../../components/store/OrderList';
 import MenuSelector from '../../components/store/MenuSelector';
-import { Order, CartItem } from '@/types/order';
+import { Order, CartItem, MenuItem, MilkOption, Topping } from '@/types/order';
+import { MILK_OPTIONS, TOPPINGS } from '@/data/menu';
 
 export default function AdminPage() {
   const { message } = App.useApp();
@@ -13,7 +14,15 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showMenuSelector, setShowMenuSelector] = useState(false);
 
-  // ฟังก์ชันดึงข้อมูล orders จาก API
+  // ── เมนู availability ──────────────────────────────────────
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+
+  // ── นม และ ท็อปปิ้ง availability (ใช้ local state แทน API ชั่วคราว) ─────────────────────────
+  const [milkOptions, setMilkOptions] = useState<MilkOption[]>(MILK_OPTIONS);
+  const [toppings, setToppings] = useState<Topping[]>(TOPPINGS);
+
+  // ─── ดึง orders จาก API ─────────────────────────────────────
   const fetchOrders = async () => {
     try {
       const response = await fetch('/api/orders');
@@ -32,11 +41,91 @@ export default function AdminPage() {
     }
   };
 
-  // ฟังก์ชันอัพเดทสถานะ order
+  // ─── ดึงเมนู + availability จาก API ─────────────────────────
+  const fetchMenuItems = async () => {
+    try {
+      const response = await fetch('/api/menu');
+      const result = await response.json();
+
+      if (result.success) {
+        setMenuItems(result.data);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Failed to fetch menu:', error);
+      message.error('ไม่สามารถดึงเมนูได้');
+    } finally {
+      setMenuLoading(false);
+    }
+  };
+
+  // ─── เปิด/ปิดเมนู ───────────────────────────────────────────
+  const toggleMenuAvailability = async (menuId: string, available: boolean) => {
+    try {
+      const response = await fetch('/api/menu', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: menuId, available }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setMenuItems((prev) =>
+          prev.map((item) =>
+            item.id === menuId ? { ...item, available } : item
+          )
+        );
+        message.success(available ? 'เปิดเมนูแล้ว' : 'ปิดเมนูแล้ว');
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Failed to toggle menu:', error);
+      message.error('เปิด/ปิดเมนูไม่สำเร็จ');
+    }
+  };
+
+  // ─── เปิด/ปิดนม (ใช้ local state) ─────────────────────────────────────────────
+  const toggleMilkAvailability = (milkValue: string, available: boolean) => {
+    setMilkOptions((prev) =>
+      prev.map((milk) =>
+        milk.value === milkValue ? { ...milk, available } : milk
+      )
+    );
+    message.success(available ? 'เปิดนมแล้ว' : 'ปิดนมแล้ว');
+    
+    // TODO: เมื่อมี API แล้วให้เรียก API แทน
+    // await fetch('/api/options/milk', {
+    //   method: 'PATCH',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ value: milkValue, available }),
+    // });
+  };
+
+  // ─── เปิด/ปิดท็อปปิ้ง (ใช้ local state) ────────────────────────────────────────
+  const toggleToppingAvailability = (toppingId: string, available: boolean) => {
+    setToppings((prev) =>
+      prev.map((topping) =>
+        topping.id === toppingId ? { ...topping, available } : topping
+      )
+    );
+    message.success(available ? 'เปิดท็อปปิ้งแล้ว' : 'ปิดท็อปปิ้งแล้ว');
+    
+    // TODO: เมื่อมี API แล้วให้เรียก API แทน
+    // await fetch('/api/options/topping', {
+    //   method: 'PATCH',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ id: toppingId, available }),
+    // });
+  };
+
+  // ─── อัพเดทสถานะ order ──────────────────────────────────────
   const updateOrderStatus = async (
-    orderId: string, 
-    status: string, 
-    items?: CartItem[], 
+    orderId: string,
+    status: string,
+    items?: CartItem[],
     price?: number
   ) => {
     try {
@@ -66,14 +155,15 @@ export default function AdminPage() {
     }
   };
 
-  // ดึงข้อมูลครั้งแรก
+  // ─── Initial fetch ──────────────────────────────────────────
   useEffect(() => {
     fetchOrders();
+    fetchMenuItems();
   }, []);
 
-  // Auto-refresh ทุก 5 วินาที
+  // ─── Auto-refresh orders ────────────────────────────────────
   useEffect(() => {
-    const pendingCount = orders.filter(o => o.status === 'pending').length;
+    const pendingCount = orders.filter((o) => o.status === 'pending').length;
     const interval = setInterval(() => {
       fetchOrders();
     }, pendingCount > 0 ? 3000 : 10000);
@@ -81,12 +171,12 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, [orders]);
 
-  // แบ่ง orders ตามสถานะ
-  const pendingOrders = orders.filter(o => o.status === 'pending');
-  const confirmedOrders = orders.filter(o => o.status === 'confirmed');
-  const preparingOrders = orders.filter(o => o.status === 'preparing');
+  // ─── แบ่ง orders ตามสถานะ ──────────────────────────────────
+  const pendingOrders = orders.filter((o) => o.status === 'pending');
+  const confirmedOrders = orders.filter((o) => o.status === 'confirmed');
+  const preparingOrders = orders.filter((o) => o.status === 'preparing');
 
-  // Handle actions
+  // ─── Order handlers ─────────────────────────────────────────
   const handleSelectOrder = (order: Order) => {
     setSelectedOrder(order);
     setShowMenuSelector(true);
@@ -102,7 +192,6 @@ export default function AdminPage() {
 
   const handleConfirmOrder = (items: CartItem[], totalPrice: number) => {
     if (selectedOrder) {
-      // เปลี่ยนจาก 'confirmed' เป็น 'preparing' เพื่อข้าม step "ยืนยันแล้ว"
       updateOrderStatus(selectedOrder._id, 'preparing', items, totalPrice);
       setSelectedOrder(null);
       setShowMenuSelector(false);
@@ -122,6 +211,136 @@ export default function AdminPage() {
     );
   }
 
+  const tabItems = [
+    {
+      key: 'menu',
+      label: 'เมนู',
+      children: (
+        <div>
+          {menuLoading ? (
+            <Spin size="small" />
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {menuItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{
+                    backgroundColor: item.available ? '#2a2a2a' : '#1a1a1a',
+                    border: item.available ? '1px solid #404040' : '1px solid #333',
+                    opacity: item.available ? 1 : 0.55,
+                  }}
+                >
+                  <div className="flex-1 pr-3 min-w-0">
+                    <p
+                      className="text-sm font-medium truncate"
+                      style={{ color: item.available ? '#fff' : '#666' }}
+                    >
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-gray-500">{item.basePrice} ฿</p>
+                  </div>
+                  <Switch
+                    size="small"
+                    checked={item.available}
+                    onChange={(checked) => toggleMenuAvailability(item.id, checked)}
+                    style={item.available ? { backgroundColor: '#C67C4E' } : {}}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'milk',
+      label: 'นม',
+      children: (
+        <div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {milkOptions.map((milk) => {
+              const isFreshMilk = milk.value === 'fresh';
+              return (
+                <div
+                  key={milk.value}
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{
+                    backgroundColor: milk.available ? '#2a2a2a' : '#1a1a1a',
+                    border: milk.available ? '1px solid #404040' : '1px solid #333',
+                    opacity: milk.available ? 1 : 0.55,
+                  }}
+                >
+                  <div className="flex-1 pr-3 min-w-0">
+                    <p
+                      className="text-sm font-medium truncate"
+                      style={{ color: milk.available ? '#fff' : '#666' }}
+                    >
+                      {milk.label}
+                      {isFreshMilk && (
+                        <span className="text-xs text-gray-500 ml-1">(Base)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {milk.price > 0 ? `+${milk.price} ฿` : 'ฟรี'}
+                    </p>
+                  </div>
+                  <Switch
+                    size="small"
+                    checked={milk.available}
+                    onChange={(checked) => toggleMilkAvailability(milk.value, checked)}
+                    style={milk.available ? { backgroundColor: '#C67C4E' } : {}}
+                    disabled={isFreshMilk}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            * นมสดเป็น base ของเมนู ปิดไม่ได้
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'topping',
+      label: 'ท็อปปิ้ง',
+      children: (
+        <div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {toppings.map((topping) => (
+              <div
+                key={topping.id}
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{
+                  backgroundColor: topping.available ? '#2a2a2a' : '#1a1a1a',
+                  border: topping.available ? '1px solid #404040' : '1px solid #333',
+                  opacity: topping.available ? 1 : 0.55,
+                }}
+              >
+                <div className="flex-1 pr-3 min-w-0">
+                  <p
+                    className="text-sm font-medium truncate"
+                    style={{ color: topping.available ? '#fff' : '#666' }}
+                  >
+                    {topping.name}
+                  </p>
+                  <p className="text-xs text-gray-500">+{topping.price} ฿</p>
+                </div>
+                <Switch
+                  size="small"
+                  checked={topping.available}
+                  onChange={(checked) => toggleToppingAvailability(topping.id, checked)}
+                  style={topping.available ? { backgroundColor: '#C67C4E' } : {}}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 p-6" style={{ backgroundColor: '#0a0a0a' }}>
       <div className="max-w-6xl mx-auto">
@@ -140,34 +359,57 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* Order List */}
-        <div>
-        <OrderList
-          pendingOrders={pendingOrders}
-          confirmedOrders={confirmedOrders}
-          preparingOrders={preparingOrders}
-          onSelectOrder={handleSelectOrder}
-          onStartPreparing={handleStartPreparing}
-          onMarkReady={handleMarkReady}
-        />
-
-        {/* Menu Selector Modal */}
-        <Modal
-          title={`เลือกเมนูสำหรับออเดอร์ ${selectedOrder?.orderNumber}`}
-          open={showMenuSelector}
-          onCancel={handleCancelSelect}
-          footer={null}
-          width={700}
-          destroyOnHidden
+        {/* ─── Availability Management Panel ──────────────────────────── */}
+        <Card
+          style={{
+            backgroundColor: '#1a1a1a',
+            borderColor: '#404040',
+            borderRadius: '12px',
+            marginBottom: '24px',
+          }}
         >
-          {selectedOrder && (
-            <MenuSelector
-              orderText={selectedOrder.customerText}
-              onConfirm={handleConfirmOrder}
-              onCancel={handleCancelSelect}
-            />
-          )}
-        </Modal>
+          <h2 className="text-lg font-semibold text-[#C67C4E] mb-4">
+            จัดการความพร้อม
+          </h2>
+          <Tabs
+            items={tabItems}
+            defaultActiveKey="menu"
+            tabBarStyle={{
+              color: '#C67C4E',
+            }}
+          />
+        </Card>
+
+        {/* ─── Order List ─────────────────────────────────────── */}
+        <div>
+          <OrderList
+            pendingOrders={pendingOrders}
+            confirmedOrders={confirmedOrders}
+            preparingOrders={preparingOrders}
+            onSelectOrder={handleSelectOrder}
+            onStartPreparing={handleStartPreparing}
+            onMarkReady={handleMarkReady}
+          />
+
+          {/* Menu Selector Modal */}
+          <Modal
+            title={`เลือกเมนูสำหรับออเดอร์ ${selectedOrder?.orderNumber}`}
+            open={showMenuSelector}
+            onCancel={handleCancelSelect}
+            footer={null}
+            width={700}
+            destroyOnHidden
+          >
+            {selectedOrder && (
+              <MenuSelector
+                orderText={selectedOrder.customerText}
+                onConfirm={handleConfirmOrder}
+                onCancel={handleCancelSelect}
+                milkOptions={milkOptions}
+                toppings={toppings}
+              />
+            )}
+          </Modal>
         </div>
       </div>
     </div>

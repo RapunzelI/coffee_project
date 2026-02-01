@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body>
+      <body><AntdRegistry>
         <ConfigProvider 
         theme={{ 
           algorithm: theme.darkAlgorithm,
@@ -37,12 +37,12 @@ export default function RootLayout({
           }
         }}>
           
-            <AntdRegistry>
+            
               <App>
                 {children}
               </App>
-            </AntdRegistry>
-        </ConfigProvider>
+            
+        </ConfigProvider></AntdRegistry>
       </body>
     </html>
   );

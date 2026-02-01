@@ -18,9 +18,30 @@ export default function AdminPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
 
-  // ── นม และ ท็อปปิ้ง availability (ใช้ local state แทน API ชั่วคราว) ─────────────────────────
-  const [milkOptions, setMilkOptions] = useState<MilkOption[]>(MILK_OPTIONS);
-  const [toppings, setToppings] = useState<Topping[]>(TOPPINGS);
+  // ── นม และ ท็อปปิ้ง availability ─────────────────────────
+  const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
+  const [toppings, setToppings] = useState<Topping[]>([]);
+
+  // ─── โหลดข้อมูลจาก localStorage ────────────────────────────
+  useEffect(() => {
+    // โหลดนม
+    const savedMilk = localStorage.getItem('milkOptions');
+    if (savedMilk) {
+      setMilkOptions(JSON.parse(savedMilk));
+    } else {
+      setMilkOptions(MILK_OPTIONS);
+      localStorage.setItem('milkOptions', JSON.stringify(MILK_OPTIONS));
+    }
+
+    // โหลดท็อปปิ้ง
+    const savedToppings = localStorage.getItem('toppings');
+    if (savedToppings) {
+      setToppings(JSON.parse(savedToppings));
+    } else {
+      setToppings(TOPPINGS);
+      localStorage.setItem('toppings', JSON.stringify(TOPPINGS));
+    }
+  }, []);
 
   // ─── ดึง orders จาก API ─────────────────────────────────────
   const fetchOrders = async () => {
@@ -87,16 +108,17 @@ export default function AdminPage() {
     }
   };
 
-  // ─── เปิด/ปิดนม (ใช้ local state) ─────────────────────────────────────────────
+  // ─── เปิด/ปิดนม (บันทึกลง localStorage) ─────────────────────
   const toggleMilkAvailability = (milkValue: string, available: boolean) => {
-    setMilkOptions((prev) =>
-      prev.map((milk) =>
-        milk.value === milkValue ? { ...milk, available } : milk
-      )
+    const updatedMilk = milkOptions.map((milk) =>
+      milk.value === milkValue ? { ...milk, available } : milk
     );
+    setMilkOptions(updatedMilk);
+    localStorage.setItem('milkOptions', JSON.stringify(updatedMilk));
+    
     message.success(available ? 'เปิดนมแล้ว' : 'ปิดนมแล้ว');
     
-    // TODO: เมื่อมี API แล้วให้เรียก API แทน
+    // TODO: เมื่อมี API แล้วให้เรียก API ด้วย
     // await fetch('/api/options/milk', {
     //   method: 'PATCH',
     //   headers: { 'Content-Type': 'application/json' },
@@ -104,16 +126,17 @@ export default function AdminPage() {
     // });
   };
 
-  // ─── เปิด/ปิดท็อปปิ้ง (ใช้ local state) ────────────────────────────────────────
+  // ─── เปิด/ปิดท็อปปิ้ง (บันทึกลง localStorage) ────────────────
   const toggleToppingAvailability = (toppingId: string, available: boolean) => {
-    setToppings((prev) =>
-      prev.map((topping) =>
-        topping.id === toppingId ? { ...topping, available } : topping
-      )
+    const updatedToppings = toppings.map((topping) =>
+      topping.id === toppingId ? { ...topping, available } : topping
     );
+    setToppings(updatedToppings);
+    localStorage.setItem('toppings', JSON.stringify(updatedToppings));
+    
     message.success(available ? 'เปิดท็อปปิ้งแล้ว' : 'ปิดท็อปปิ้งแล้ว');
     
-    // TODO: เมื่อมี API แล้วให้เรียก API แทน
+    // TODO: เมื่อมี API แล้วให้เรียก API ด้วย
     // await fetch('/api/options/topping', {
     //   method: 'PATCH',
     //   headers: { 'Content-Type': 'application/json' },
@@ -407,6 +430,7 @@ export default function AdminPage() {
                 onCancel={handleCancelSelect}
                 milkOptions={milkOptions}
                 toppings={toppings}
+                menuItems={menuItems}
               />
             )}
           </Modal>

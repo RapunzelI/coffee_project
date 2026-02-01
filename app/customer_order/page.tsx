@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, App, Carousel } from 'antd';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import OrderForm from '../../components/customer/OrderFrom';
+import { MILK_OPTIONS, TOPPINGS } from '@/data/menu';
 import { MenuItem, MilkOption, Topping } from '@/types/order';
 
 export default function OrderPage() {
@@ -15,10 +16,12 @@ export default function OrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // นมและท็อปปิ้ง (โหลดจาก localStorage)
   const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showMenu, setShowMenu] = useState(false);
 
   // Promotion images
   const promotionImages = [
@@ -42,35 +45,71 @@ export default function OrderPage() {
     }
   ];
 
-  // ดึงข้อมูลเมนู, นม, ท็อปปิ้ง
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      // ดึงเมนู
-      const menuResponse = await fetch('/api/menu');
-      const menuResult = await menuResponse.json();
-      if (menuResult.success) {
-        setMenuItems(menuResult.data);
-      }
+  // ─── โหลดข้อมูลจาก localStorage ────────────────────────────
+  useEffect(() => {
+    // โหลดนม
+    const savedMilk = localStorage.getItem('milkOptions');
+    if (savedMilk) {
+      setMilkOptions(JSON.parse(savedMilk));
+    } else {
+      setMilkOptions(MILK_OPTIONS);
+    }
 
-      // ดึงนมและท็อปปิ้ง
-      const optionsResponse = await fetch('/api/options');
-      const optionsResult = await optionsResponse.json();
-      if (optionsResult.success) {
-        setMilkOptions(optionsResult.data.milkOptions);
-        setToppings(optionsResult.data.toppings);
+    // โหลดท็อปปิ้ง
+    const savedToppings = localStorage.getItem('toppings');
+    if (savedToppings) {
+      setToppings(JSON.parse(savedToppings));
+    } else {
+      setToppings(TOPPINGS);
+    }
+
+    // ฟังการเปลี่ยนแปลงจาก storage event (เมื่อแท็บอื่นอัพเดท)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'milkOptions' && e.newValue) {
+        setMilkOptions(JSON.parse(e.newValue));
+      }
+      if (e.key === 'toppings' && e.newValue) {
+        setToppings(JSON.parse(e.newValue));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Poll localStorage ทุกๆ 1 วินาที (สำหรับแท็บเดียวกัน)
+    const interval = setInterval(() => {
+      const savedMilk = localStorage.getItem('milkOptions');
+      const savedToppings = localStorage.getItem('toppings');
+      
+      if (savedMilk) {
+        setMilkOptions(JSON.parse(savedMilk));
+      }
+      if (savedToppings) {
+        setToppings(JSON.parse(savedToppings));
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const fetchMenuItems = async () => {
+    try {
+      const response = await fetch('/api/menu');
+      const result = await response.json();
+      if (result.success) {
+        setMenuItems(result.data);
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      message.error('ไม่สามารถโหลดข้อมูลได้');
+      console.error('Failed to fetch menu:', error);
     } finally {
-      setLoading(false);
+      setMenuLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchMenuItems();
   }, []);
 
   const handleSubmit = async () => {
@@ -111,9 +150,9 @@ export default function OrderPage() {
 
   const availableMenus = menuItems.filter((m) => m.available);
   const unavailableMenus = menuItems.filter((m) => !m.available);
-  const availableMilk = milkOptions.filter((m) => m.available);
-  const unavailableMilk = milkOptions.filter((m) => !m.available);
-  const availableToppings = toppings.filter((t) => t.available);
+  
+  // นมและท็อปปิ้งที่หมด (ยกเว้นนมสด)
+  const unavailableMilk = milkOptions.filter((m) => !m.available && m.value !== 'fresh');
   const unavailableToppings = toppings.filter((t) => !t.available);
 
   return (
@@ -161,109 +200,112 @@ export default function OrderPage() {
           </Carousel>
         </div>
 
-        {/* ─── Row: รายการหมด + ปุ่มเมนูทั้งหมด ─── */}
-        <div className="flex items-start justify-between mb-3 gap-3">
-          {/* ซ้าย — รายการที่หมด */}
-          <div className="flex flex-wrap gap-2 flex-1">
-            {!loading && (
-              <>
-                {/* เมนูที่หมด */}
-                {unavailableMenus.map((item) => (
-                  <div
-                    key={`menu-${item.id}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง ─── */}
+        {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {/* เมนูที่หมด */}
+            {!menuLoading && unavailableMenus.length > 0 && (
+              unavailableMenus.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #2a2a2a',
+                  }}
+                >
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: '#555', textDecoration: 'line-through' }}
+                  >
+                    {item.name}
+                  </span>
+                  <span
+                    className="px-1.5 rounded"
                     style={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
+                      fontSize: '9px',
+                      lineHeight: '16px',
+                      backgroundColor: '#2a1a1a',
+                      color: '#a55',
+                      border: '1px solid #3a2020',
                     }}
                   >
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: '#555', textDecoration: 'line-through' }}
-                    >
-                      {item.name}
-                    </span>
-                    <span
-                      className="px-1.5 rounded"
-                      style={{
-                        fontSize: '9px',
-                        lineHeight: '16px',
-                        backgroundColor: '#2a1a1a',
-                        color: '#a55',
-                        border: '1px solid #3a2020',
-                      }}
-                    >
-                      หมด
-                    </span>
-                  </div>
-                ))}
+                    หมด
+                  </span>
+                </div>
+              ))
+            )}
 
-                {/* นมที่หมด */}
-                {unavailableMilk.map((milk) => (
-                  <div
-                    key={`milk-${milk.value}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+            {/* นมที่หมด (ยกเว้นนมสด) */}
+            {unavailableMilk.length > 0 && (
+              unavailableMilk.map((milk) => (
+                <div
+                  key={milk.value}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #2a2a2a',
+                  }}
+                >
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: '#555', textDecoration: 'line-through' }}
+                  >
+                    {milk.label}
+                  </span>
+                  <span
+                    className="px-1.5 rounded"
                     style={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
+                      fontSize: '9px',
+                      lineHeight: '16px',
+                      backgroundColor: '#2a1a1a',
+                      color: '#a55',
+                      border: '1px solid #3a2020',
                     }}
                   >
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: '#555', textDecoration: 'line-through' }}
-                    >
-                      {milk.label}
-                    </span>
-                    <span
-                      className="px-1.5 rounded"
-                      style={{
-                        fontSize: '9px',
-                        lineHeight: '16px',
-                        backgroundColor: '#2a1a1a',
-                        color: '#a55',
-                        border: '1px solid #3a2020',
-                      }}
-                    >
-                      หมด
-                    </span>
-                  </div>
-                ))}
+                    หมด
+                  </span>
+                </div>
+              ))
+            )}
 
-                {/* ท็อปปิ้งที่หมด */}
-                {unavailableToppings.map((topping) => (
-                  <div
-                    key={`topping-${topping.id}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+            {/* ท็อปปิ้งที่หมด */}
+            {unavailableToppings.length > 0 && (
+              unavailableToppings.map((topping) => (
+                <div
+                  key={topping.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #2a2a2a',
+                  }}
+                >
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: '#555', textDecoration: 'line-through' }}
+                  >
+                    {topping.name}
+                  </span>
+                  <span
+                    className="px-1.5 rounded"
                     style={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
+                      fontSize: '9px',
+                      lineHeight: '16px',
+                      backgroundColor: '#2a1a1a',
+                      color: '#a55',
+                      border: '1px solid #3a2020',
                     }}
                   >
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: '#555', textDecoration: 'line-through' }}
-                    >
-                      {topping.name}
-                    </span>
-                    <span
-                      className="px-1.5 rounded"
-                      style={{
-                        fontSize: '9px',
-                        lineHeight: '16px',
-                        backgroundColor: '#2a1a1a',
-                        color: '#a55',
-                        border: '1px solid #3a2020',
-                      }}
-                    >
-                      หมด
-                    </span>
-                  </div>
-                ))}
-              </>
+                    หมด
+                  </span>
+                </div>
+              ))
             )}
           </div>
+        )}
 
-          {/* ขวา — ☰ เมนูทั้งหมด */}
+        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
+        <div className="flex justify-end mb-3">
           <button
             onClick={() => setShowMenu((prev) => !prev)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-colors"
@@ -288,7 +330,7 @@ export default function OrderPage() {
             className="rounded-xl mb-4 overflow-hidden"
             style={{ border: '1px solid #2a2a2a', backgroundColor: '#141414' }}
           >
-            {loading ? (
+            {menuLoading ? (
               <div className="px-4 py-4 flex gap-3">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -300,7 +342,7 @@ export default function OrderPage() {
               </div>
             ) : (
               <>
-                {/* เมนู */}
+                {/* เมนูทั้งหมด */}
                 <div className="px-4 pt-4 pb-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                     เมนู
@@ -362,42 +404,42 @@ export default function OrderPage() {
                     ชนิดนม
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {availableMilk.map((milk) => (
+                    {milkOptions.map((milk) => (
                       <div
                         key={milk.value}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-md"
-                        style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
-                      >
-                        <span className="text-xs text-gray-300">{milk.label}</span>
-                        {milk.price > 0 && (
-                          <span className="text-xs text-gray-600">+{milk.price} ฿</span>
-                        )}
-                      </div>
-                    ))}
-                    {unavailableMilk.map((milk) => (
-                      <div
-                        key={milk.value}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md relative"
-                        style={{ backgroundColor: '#111', border: '1px solid #1f1f1f' }}
+                        style={{ 
+                          backgroundColor: milk.available ? '#1a1a1a' : '#111',
+                          border: milk.available ? '1px solid #2a2a2a' : '1px solid #1f1f1f',
+                          opacity: milk.available ? 1 : 0.5
+                        }}
                       >
                         <span 
-                          className="text-xs"
-                          style={{ color: '#3a3a3a', textDecoration: 'line-through' }}
+                          className="text-xs font-medium"
+                          style={{ 
+                            color: milk.available ? '#d4d4d4' : '#555',
+                            textDecoration: milk.available ? 'none' : 'line-through'
+                          }}
                         >
                           {milk.label}
                         </span>
-                        <span
-                          className="px-1 rounded"
-                          style={{
-                            fontSize: '9px',
-                            lineHeight: '14px',
-                            backgroundColor: '#2a1a1a',
-                            color: '#a55',
-                            border: '1px solid #3a2020',
-                          }}
-                        >
-                          หมด
-                        </span>
+                        {milk.available && milk.price > 0 && (
+                          <span className="text-xs text-gray-600">+{milk.price} ฿</span>
+                        )}
+                        {!milk.available && (
+                          <span
+                            className="px-1.5 rounded"
+                            style={{
+                              fontSize: '9px',
+                              lineHeight: '14px',
+                              backgroundColor: '#2a1a1a',
+                              color: '#a55',
+                              border: '1px solid #3a2020',
+                            }}
+                          >
+                            หมด
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -409,40 +451,42 @@ export default function OrderPage() {
                     ท็อปปิ้ง
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {availableToppings.map((topping) => (
+                    {toppings.map((topping) => (
                       <div
                         key={topping.id}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-md"
-                        style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
-                      >
-                        <span className="text-xs text-gray-300">{topping.name}</span>
-                        <span className="text-xs text-gray-600">+{topping.price} ฿</span>
-                      </div>
-                    ))}
-                    {unavailableToppings.map((topping) => (
-                      <div
-                        key={topping.id}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md"
-                        style={{ backgroundColor: '#111', border: '1px solid #1f1f1f' }}
+                        style={{ 
+                          backgroundColor: topping.available ? '#1a1a1a' : '#111',
+                          border: topping.available ? '1px solid #2a2a2a' : '1px solid #1f1f1f',
+                          opacity: topping.available ? 1 : 0.5
+                        }}
                       >
                         <span 
-                          className="text-xs"
-                          style={{ color: '#3a3a3a', textDecoration: 'line-through' }}
+                          className="text-xs font-medium"
+                          style={{ 
+                            color: topping.available ? '#d4d4d4' : '#555',
+                            textDecoration: topping.available ? 'none' : 'line-through'
+                          }}
                         >
                           {topping.name}
                         </span>
-                        <span
-                          className="px-1 rounded"
-                          style={{
-                            fontSize: '9px',
-                            lineHeight: '14px',
-                            backgroundColor: '#2a1a1a',
-                            color: '#a55',
-                            border: '1px solid #3a2020',
-                          }}
-                        >
-                          หมด
-                        </span>
+                        {topping.available && (
+                          <span className="text-xs text-gray-600">+{topping.price} ฿</span>
+                        )}
+                        {!topping.available && (
+                          <span
+                            className="px-1.5 rounded"
+                            style={{
+                              fontSize: '9px',
+                              lineHeight: '14px',
+                              backgroundColor: '#2a1a1a',
+                              color: '#a55',
+                              border: '1px solid #3a2020',
+                            }}
+                          >
+                            หมด
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -452,7 +496,7 @@ export default function OrderPage() {
           </div>
         )}
 
-        {/* ─── OrderForm เดิม ───────────────────────────────────── */}
+        {/* ─── OrderForm เดิม ───────────────────────────── */}
         <div>
           <Card
             style={{

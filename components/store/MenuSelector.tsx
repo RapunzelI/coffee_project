@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Form, Select, InputNumber, Checkbox, Button, Divider, Space, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { MENU_ITEMS, MENU_TYPES } from '@/data/menu';
-import { CartItem, MilkOption, Topping } from '@/types/order';
+import { MENU_TYPES } from '@/data/menu';
+import { CartItem, MilkOption, Topping, MenuItem } from '@/types/order';
 
 interface MenuSelectorProps {
   orderText: string;
@@ -12,6 +12,7 @@ interface MenuSelectorProps {
   onCancel: () => void;
   milkOptions: MilkOption[];
   toppings: Topping[];
+  menuItems: MenuItem[]; // เพิ่ม prop นี้
 }
 
 export default function MenuSelector({ 
@@ -19,7 +20,8 @@ export default function MenuSelector({
   onConfirm, 
   onCancel,
   milkOptions,
-  toppings 
+  toppings,
+  menuItems // รับเมนูจาก Admin
 }: MenuSelectorProps) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
@@ -32,6 +34,7 @@ export default function MenuSelector({
   });
 
   // กรองเฉพาะตัวเลือกที่ available
+  const availableMenuItems = menuItems.filter(m => m.available); // เพิ่มบรรทัดนี้
   const availableMilkOptions = milkOptions.filter(m => m.available);
   const availableToppings = toppings.filter(t => t.available);
 
@@ -39,7 +42,7 @@ export default function MenuSelector({
   const calculateItemPrice = () => {
     if (!currentItem.menuId) return 0;
 
-    const menu = MENU_ITEMS.find(m => m.id === currentItem.menuId);
+    const menu = menuItems.find(m => m.id === currentItem.menuId);
     if (!menu) return 0;
 
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
@@ -57,7 +60,7 @@ export default function MenuSelector({
   const handleAddItem = () => {
     if (!currentItem.menuId) return;
 
-    const menu = MENU_ITEMS.find(m => m.id === currentItem.menuId);
+    const menu = menuItems.find(m => m.id === currentItem.menuId);
     if (!menu) return;
 
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
@@ -126,11 +129,15 @@ export default function MenuSelector({
             placeholder="เลือกเมนู"
             value={currentItem.menuId}
             onChange={(value) => setCurrentItem({ ...currentItem, menuId: value })}
-            options={MENU_ITEMS.map(item => ({
+            options={availableMenuItems.map(item => ({
               label: `${item.name} - ${item.basePrice}฿`,
               value: item.id
             }))}
+            disabled={availableMenuItems.length === 0}
           />
+          {availableMenuItems.length === 0 && (
+            <p className="text-xs text-red-500 mt-1">ไม่มีเมนูที่พร้อมให้บริการในขณะนี้</p>
+          )}
         </Form.Item>
 
         <Form.Item label="ประเภท">
@@ -166,7 +173,7 @@ export default function MenuSelector({
               value={currentItem.toppings}
               onChange={(values) => setCurrentItem({ ...currentItem, toppings: values as string[] })}
             >
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 {availableToppings.map(topping => (
                   <Checkbox key={topping.id} value={topping.id}>
                     {topping.name} (+{topping.price}฿)
@@ -196,7 +203,7 @@ export default function MenuSelector({
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleAddItem}
-            disabled={!currentItem.menuId}
+            disabled={!currentItem.menuId || availableMenuItems.length === 0}
             style={{ backgroundColor: '#C67C4E', borderColor: '#C67C4E' }}
           >
             เพิ่มในรายการ

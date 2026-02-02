@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal, Radio, Select, Checkbox, InputNumber, Input, Divider } from 'antd';
-import { CartItem, MilkOption, Topping } from '@/types/order';
+import { CartItem, MilkOption, Topping, MenuItem } from '@/types/order';
 import { MENU_TYPES } from '@/data/menu';
 
 interface ItemEditModalProps {
@@ -12,6 +12,7 @@ interface ItemEditModalProps {
   onChange: (item: CartItem) => void;
   milkOptions: MilkOption[];
   toppings: Topping[];
+  menuItems: MenuItem[]; // เพิ่ม prop นี้
 }
 
 export default function ItemEditModal({
@@ -21,7 +22,8 @@ export default function ItemEditModal({
   onCancel,
   onChange,
   milkOptions,
-  toppings
+  toppings,
+  menuItems
 }: ItemEditModalProps) {
   if (!item) return null;
 
@@ -29,10 +31,19 @@ export default function ItemEditModal({
   const availableMilkOptions = milkOptions.filter(m => m.available);
   const availableToppings = toppings.filter(t => t.available);
 
+  // หาว่าเมนูนี้ต้องการนมหรือไม่
+  const menuInfo = menuItems.find(m => m.name === item.menuName);
+  const requiresMilk = menuInfo?.requiresMilk ?? true;
+
+  // กรองตัวเลือกนม
+  const filteredMilkOptions = requiresMilk 
+    ? availableMilkOptions.filter(m => m.value !== 'none')
+    : availableMilkOptions;
+
   // คำนวณราคารายการ
   const calculateItemPrice = (item: CartItem) => {
     const menuType = MENU_TYPES.find(t => t.label === item.type);
-    const milk = milkOptions.find(m => m.label === item.milk);
+    const milk = item.milk ? milkOptions.find(m => m.label === item.milk) : null;
     
     const toppingPrices = item.toppings.reduce((sum, toppingName) => {
       const topping = toppings.find(t => t.name === toppingName);
@@ -82,14 +93,20 @@ export default function ItemEditModal({
         </div>
 
         <div>
-          <p className="font-semibold mb-2">เปลี่ยนชนิดนม</p>
-          {availableMilkOptions.length > 0 ? (
+          <p className="font-semibold mb-2">
+            เปลี่ยนชนิดนม
+            {!requiresMilk && (
+              <span className="text-xs text-gray-500 ml-2">(ไม่จำเป็น)</span>
+            )}
+          </p>
+          {filteredMilkOptions.length > 0 ? (
             <Select
               value={item.milk}
               onChange={(value) => onChange({ ...item, milk: value })}
               className="w-full"
+              placeholder={requiresMilk ? 'เลือกชนิดนม' : 'ไม่ใส่นม หรือเลือกชนิดนม'}
             >
-              {availableMilkOptions.map(m => (
+              {filteredMilkOptions.map(m => (
                 <Select.Option key={m.value} value={m.label}>
                   {m.label} {m.price > 0 ? `+${m.price} ฿` : ''}
                 </Select.Option>

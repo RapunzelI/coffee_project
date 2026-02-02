@@ -12,7 +12,7 @@ interface MenuSelectorProps {
   onCancel: () => void;
   milkOptions: MilkOption[];
   toppings: Topping[];
-  menuItems: MenuItem[]; // เพิ่ม prop นี้
+  menuItems: MenuItem[];
 }
 
 export default function MenuSelector({ 
@@ -21,22 +21,31 @@ export default function MenuSelector({
   onCancel,
   milkOptions,
   toppings,
-  menuItems // รับเมนูจาก Admin
+  menuItems
 }: MenuSelectorProps) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     menuId: null as string | null,
     type: 'iced' as 'hot' | 'iced' | 'blended',
-    milk: 'fresh' as 'fresh' | 'oat' | 'almond' | 'soy',
+    milk: null as string | null, // เปลี่ยนเป็น null
     toppings: [] as string[],
     quantity: 1,
     specialNote: ''
   });
 
   // กรองเฉพาะตัวเลือกที่ available
-  const availableMenuItems = menuItems.filter(m => m.available); // เพิ่มบรรทัดนี้
+  const availableMenuItems = menuItems.filter(m => m.available);
   const availableMilkOptions = milkOptions.filter(m => m.available);
   const availableToppings = toppings.filter(t => t.available);
+
+  // ดึงข้อมูลเมนูที่เลือก
+  const selectedMenu = menuItems.find(m => m.id === currentItem.menuId);
+  const requiresMilk = selectedMenu?.requiresMilk ?? true;
+
+  // กรองตัวเลือกนม
+  const filteredMilkOptions = requiresMilk 
+    ? availableMilkOptions.filter(m => m.value !== 'none') // เมนูที่ต้องการนม: ซ่อน "ไม่ใส่นม"
+    : availableMilkOptions; // เมนูที่ไม่ต้องการนม: แสดงทั้งหมด
 
   // คำนวณราคาของรายการปัจจุบัน
   const calculateItemPrice = () => {
@@ -46,7 +55,7 @@ export default function MenuSelector({
     if (!menu) return 0;
 
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
-    const milk = milkOptions.find(m => m.value === currentItem.milk);
+    const milk = currentItem.milk ? milkOptions.find(m => m.value === currentItem.milk) : null;
     const toppingPrices = currentItem.toppings.reduce((sum, toppingId) => {
       const topping = toppings.find(t => t.id === toppingId);
       return sum + (topping?.price || 0);
@@ -63,15 +72,20 @@ export default function MenuSelector({
     const menu = menuItems.find(m => m.id === currentItem.menuId);
     if (!menu) return;
 
+    // ตรวจสอบว่าเมนูที่ต้องการนมได้เลือกนมหรือยัง
+    if (menu.requiresMilk && !currentItem.milk) {
+      return;
+    }
+
     const menuType = MENU_TYPES.find(t => t.value === currentItem.type);
-    const milk = milkOptions.find(m => m.value === currentItem.milk);
+    const milk = currentItem.milk ? milkOptions.find(m => m.value === currentItem.milk) : null;
     const basePrice = calculateItemPrice() / currentItem.quantity;
 
     const newItem: CartItem = {
       key: Date.now(),
       menuName: menu.name,
-      type: menuType?.label || 'ร้อน',
-      milk: milk?.label || 'นมสด',
+      type: menuType?.label || 'เย็น',
+      milk: milk?.label || null,
       toppings: currentItem.toppings.map(id => {
         const topping = toppings.find(t => t.id === id);
         return topping?.name || '';
@@ -87,7 +101,7 @@ export default function MenuSelector({
     setCurrentItem({
       menuId: null,
       type: 'iced',
-      milk: 'fresh',
+      milk: null,
       toppings: [],
       quantity: 1,
       specialNote: ''
@@ -110,12 +124,24 @@ export default function MenuSelector({
     onConfirm(items, getTotalPrice());
   };
 
+  // เมื่อเลือกเมนูใหม่
+  const handleMenuChange = (menuId: string) => {
+    const menu = menuItems.find(m => m.id === menuId);
+    setCurrentItem({ 
+      ...currentItem, 
+      menuId,
+      // ถ้าเมนูไม่ต้องการนม ให้เซ็ตเป็น "none", ถ้าต้องการนมให้เซ็ตเป็น "fresh"
+      milk: menu?.requiresMilk ? 'fresh' : 'none'
+    });
+  };
+
   const currentPrice = calculateItemPrice();
+  const canAddItem = currentItem.menuId && (!requiresMilk || currentItem.milk);
 
   return (
     <div className="space-y-4">
       {/* ข้อความจากลูกค้า */}
-      <div className="p-4 bg-black rounded-lg ">
+      <div className="p-4 bg-black rounded-lg">
         <p className="text-sm text-gray-500 mb-1">รายละเอียดจากลูกค้า:</p>
         <p className="font-medium">{orderText}</p>
       </div>
@@ -128,7 +154,7 @@ export default function MenuSelector({
           <Select
             placeholder="เลือกเมนู"
             value={currentItem.menuId}
-            onChange={(value) => setCurrentItem({ ...currentItem, menuId: value })}
+            onChange={handleMenuChange}
             options={availableMenuItems.map(item => ({
               label: `${item.name} - ${item.basePrice}฿`,
               value: item.id
@@ -151,19 +177,29 @@ export default function MenuSelector({
           />
         </Form.Item>
 
-        <Form.Item label="ชนิดนม">
-          <Select
-            value={currentItem.milk}
-            onChange={(value) => setCurrentItem({ ...currentItem, milk: value })}
-            options={availableMilkOptions.map(milk => ({
-              label: `${milk.label}${milk.price > 0 ? ` (+${milk.price}฿)` : ''}`,
-              value: milk.value
-            }))}
-            disabled={availableMilkOptions.length === 0}
-            placeholder={availableMilkOptions.length === 0 ? 'ไม่มีนมที่พร้อมให้บริการ' : 'เลือกชนิดนม'}
-          />
-          {availableMilkOptions.length === 0 && (
-            <p className="text-xs text-red-500 mt-1">ไม่มีนมที่พร้อมให้บริการในขณะนี้</p>
+        <Form.Item 
+          label="ชนิดนม"
+          required={requiresMilk}
+        >
+          {filteredMilkOptions.length > 0 ? (
+            <>
+              <Select
+                value={currentItem.milk}
+                onChange={(value) => setCurrentItem({ ...currentItem, milk: value })}
+                options={filteredMilkOptions.map(milk => ({
+                  label: `${milk.label}${milk.price > 0 ? ` (+${milk.price}฿)` : ''}`,
+                  value: milk.value
+                }))}
+                placeholder={requiresMilk ? 'เลือกชนิดนม (จำเป็น)' : 'เลือกชนิดนม (ถ้าต้องการ)'}
+              />
+              {!requiresMilk && (
+                <p className="text-xs text-gray-500 mt-1">
+                  * เมนูนี้ไม่จำเป็นต้องใส่นม
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">ไม่มีนมที่พร้อมให้บริการในขณะนี้</p>
           )}
         </Form.Item>
 
@@ -203,7 +239,7 @@ export default function MenuSelector({
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleAddItem}
-            disabled={!currentItem.menuId || availableMenuItems.length === 0}
+            disabled={!canAddItem}
             style={{ backgroundColor: '#C67C4E', borderColor: '#C67C4E' }}
           >
             เพิ่มในรายการ
@@ -211,7 +247,7 @@ export default function MenuSelector({
         </div>
       </Form>
 
-      {/* รายการที่เพิ่มแล้ว */}
+      {/* รายการออเดอร์ */}
       {items.length > 0 && (
         <>
           <Divider>รายการออเดอร์</Divider>
@@ -225,14 +261,14 @@ export default function MenuSelector({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">{item.menuName}</span>
                     <Tag color="blue">{item.type}</Tag>
-                    <Tag>{item.milk}</Tag>
+                    {item.milk && <Tag>{item.milk}</Tag>}
                   </div>
                   {item.toppings.length > 0 && (
                     <div className="text-sm text-gray-500">
                       ท็อปปิ้ง: {item.toppings.join(', ')}
                     </div>
                   )}
-                  <div className="text-sm mt-1 bg-black">
+                  <div className="text-sm mt-1">
                     <span className="text-gray-500">จำนวน: </span>
                     <span className="font-medium">{item.quantity}</span>
                     <span className="text-gray-500 ml-3">ราคา: </span>

@@ -6,7 +6,7 @@ export interface Order {
   orderNumber: string;
   customerText: string;
   paymentMethod: 'promptpay' | 'counter';
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed';
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed'| 'cancelled';
   price: number;
   items?: CartItem[];
   createdAt: string;              
@@ -17,7 +17,7 @@ export interface CartItem {
   key: number;
   menuName: string;
   type: string;
-  milk: string;
+   milk: string | null;
   toppings: string[];
   quantity: number;
   specialNote: string;
@@ -29,6 +29,7 @@ export interface MenuItem {
   name: string;
   basePrice: number;
   available: boolean; // เพิ่มมานี้สำหรับเปิด/ปิดเมนู
+  requiresMilk: boolean;
 }
 
 export interface MenuType {
@@ -38,7 +39,7 @@ export interface MenuType {
 }
 
 export interface MilkOption {
-  value: 'fresh' | 'oat' | 'almond' | 'soy' | 'coconut' | 'lowfat';
+  value: 'fresh' | 'oat' | 'almond' | 'soy' | 'coconut' | 'lowfat' | 'none';
   label: string;
   price: number;
   available: boolean; // เพิ่มสำหรับเปิด/ปิดนม

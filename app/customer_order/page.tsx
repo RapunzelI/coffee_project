@@ -6,7 +6,7 @@ import { Card, App, Carousel } from 'antd';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import OrderForm from '../../components/customer/OrderFrom';
 import { MenuItem, MilkOption, Topping } from '@/types/order';
-import { getMergedMilkOptions, getMergedToppings } from '@/utils/storageHelper';
+import { getMergedMilkOptions, getMergedToppings, getMergedMenuItems } from '@/utils/storageHelper';
 
 export default function OrderPage() {
   const router = useRouter();
@@ -23,19 +23,20 @@ export default function OrderPage() {
   const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
 
+  // State สำหรับ expand/collapse แต่ละ section
   const [expandedSections, setExpandedSections] = useState({
-  menu: false,
-  milk: false,
-  topping: false,
-});
+    menu: false,
+    milk: false,
+    topping: false,
+  });
 
-const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
-  setExpandedSections(prev => ({
-    ...prev,
-    [section]: !prev[section]
-  }));
-};
-//https://unsplash.com/photos/a-coffee-maker-is-making-a-cup-of-coffee-A_90G6Ta56A
+  const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   // Promotion images
   const promotionImages = [
     {
@@ -95,15 +96,13 @@ const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
     };
   }, []);
 
-  const fetchMenuItems = async () => {
+  const fetchMenuItems = () => {
     try {
-      const response = await fetch('/api/menu');
-      const result = await response.json();
-      if (result.success) {
-        setMenuItems(result.data);
-      }
+      // โหลดจาก localStorage
+      const mergedMenuItems = getMergedMenuItems();
+      setMenuItems(mergedMenuItems);
     } catch (error) {
-      console.error('Failed to fetch menu:', error);
+      console.error('Failed to load menu:', error);
     } finally {
       setMenuLoading(false);
     }
@@ -111,6 +110,16 @@ const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
 
   useEffect(() => {
     fetchMenuItems();
+    
+    // Poll localStorage ทุก 1 วินาที เพื่ออัพเดทเมนู
+    const interval = setInterval(() => {
+      const savedMenuItems = localStorage.getItem('menuItems');
+      if (savedMenuItems) {
+        setMenuItems(JSON.parse(savedMenuItems));
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleSubmit = async () => {
@@ -200,6 +209,8 @@ const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
             ))}
           </Carousel>
         </div>
+
+        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
         <div className="flex justify-end mb-3">
           <button
             onClick={() => setShowMenu((prev) => !prev)}
@@ -219,8 +230,7 @@ const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
           </button>
         </div>
 
-        
-        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
+        {/* ─── Hamburger panel — เมนู + นม + ท็อปปิ้ง ─── */}
         {showMenu && (
           <div
             className="rounded-xl mb-4 overflow-hidden"
@@ -392,268 +402,266 @@ const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
           </div>
         )}
 
-        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง ─── */}
-          {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
+        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง (กล่องใหญ่สวยงาม) ─── */}
+        {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
+          <div 
+            className="mb-6 rounded-xl overflow-hidden"
+            style={{
+              backgroundColor: '#141414',
+              border: '1px solid #2a2a2a',
+            }}
+          >
+            {/* Header */}
             <div 
-              className="mb-6 rounded-xl overflow-hidden"
+              className="px-4 py-3"
               style={{
-                backgroundColor: '#141414',
-                border: '1px solid #2a2a2a',
+                backgroundColor: '#1a1a1a',
+                borderBottom: '1px solid #2a2a2a',
               }}
             >
-              {/* Header */}
-              <div 
-                className="px-4 py-3"
-                style={{
-                  backgroundColor: '#1a1a1a',
-                  borderBottom: '1px solid #2a2a2a',
-                }}
+              <h3 
+                className="text-sm font-semibold flex items-center gap-2"
+                style={{ color: '#C67C4E' }}
               >
-                <h3 
-                  className="text-sm font-semibold flex items-center gap-2"
-                  style={{ color: '#C67C4E' }}
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
                 >
-                  <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-                    />
-                  </svg>
-                  รายการที่หมดแล้ววันนี้
-                </h3>
-              </div>
-
-              <div className="p-4 space-y-4">
-                {/* เมนูที่หมด */}
-                {!menuLoading && unavailableMenus.length > 0 && (
-                  <div>
-                    <p 
-                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                      style={{ color: '#666' }}
-                    >
-                      เมนู ({unavailableMenus.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {(expandedSections.menu ? unavailableMenus : unavailableMenus.slice(0, 4)).map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px solid #2a2a2a',
-                          }}
-                        >
-                          <span
-                            className="text-sm font-medium"
-                            style={{ 
-                              color: '#666', 
-                              textDecoration: 'line-through' 
-                            }}
-                          >
-                            {item.name}
-                          </span>
-                          <span
-                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                            style={{
-                              backgroundColor: '#2a1a1a',
-                              color: '#ff6b6b',
-                              border: '1px solid #3a2020',
-                            }}
-                          >
-                            หมด
-                          </span>
-                        </div>
-                      ))}
-                      
-                      {/* ปุ่ม expand/collapse */}
-                      {unavailableMenus.length > 4 && (
-                        <button
-                          onClick={() => toggleSection('menu')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px dashed #C67C4E40',
-                            color: '#C67C4E',
-                          }}
-                        >
-                          {expandedSections.menu ? (
-                            <>
-                              <span className="text-sm font-medium">ซ่อน</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-sm font-medium">+{unavailableMenus.length - 4} เพิ่มเติม</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* นมที่หมด */}
-                {unavailableMilk.length > 0 && (
-                  <div>
-                    <p 
-                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                      style={{ color: '#666' }}
-                    >
-                      ชนิดนม ({unavailableMilk.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {(expandedSections.milk ? unavailableMilk : unavailableMilk.slice(0, 4)).map((milk) => (
-                        <div
-                          key={milk.value}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px solid #2a2a2a',
-                          }}
-                        >
-                          <span
-                            className="text-sm font-medium"
-                            style={{ 
-                              color: '#666', 
-                              textDecoration: 'line-through' 
-                            }}
-                          >
-                            {milk.label}
-                          </span>
-                          <span
-                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                            style={{
-                              backgroundColor: '#2a1a1a',
-                              color: '#ff6b6b',
-                              border: '1px solid #3a2020',
-                            }}
-                          >
-                            หมด
-                          </span>
-                        </div>
-                      ))}
-                      
-                      {/* ปุ่ม expand/collapse */}
-                      {unavailableMilk.length > 4 && (
-                        <button
-                          onClick={() => toggleSection('milk')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px dashed #C67C4E40',
-                            color: '#C67C4E',
-                          }}
-                        >
-                          {expandedSections.milk ? (
-                            <>
-                              <span className="text-sm font-medium">ซ่อน</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-sm font-medium">+{unavailableMilk.length - 4} เพิ่มเติม</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* ท็อปปิ้งที่หมด */}
-                {unavailableToppings.length > 0 && (
-                  <div>
-                    <p 
-                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                      style={{ color: '#666' }}
-                    >
-                      ท็อปปิ้ง ({unavailableToppings.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {(expandedSections.topping ? unavailableToppings : unavailableToppings.slice(0, 4)).map((topping) => (
-                        <div
-                          key={topping.id}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px solid #2a2a2a',
-                          }}
-                        >
-                          <span
-                            className="text-sm font-medium"
-                            style={{ 
-                              color: '#666', 
-                              textDecoration: 'line-through' 
-                            }}
-                          >
-                            {topping.name}
-                          </span>
-                          <span
-                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                            style={{
-                              backgroundColor: '#2a1a1a',
-                              color: '#ff6b6b',
-                              border: '1px solid #3a2020',
-                            }}
-                          >
-                            หมด
-                          </span>
-                        </div>
-                      ))}
-                      
-                      {/* ปุ่ม expand/collapse */}
-                      {unavailableToppings.length > 4 && (
-                        <button
-                          onClick={() => toggleSection('topping')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                          style={{
-                            backgroundColor: '#1a1a1a',
-                            border: '1px dashed #C67C4E40',
-                            color: '#C67C4E',
-                          }}
-                        >
-                          {expandedSections.topping ? (
-                            <>
-                              <span className="text-sm font-medium">ซ่อน</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-sm font-medium">+{unavailableToppings.length - 4} เพิ่มเติม</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                  />
+                </svg>
+                รายการที่หมดแล้ววันนี้
+              </h3>
             </div>
-          )}
 
+            <div className="p-4 space-y-4">
+              {/* เมนูที่หมด */}
+              {!menuLoading && unavailableMenus.length > 0 && (
+                <div>
+                  <p 
+                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                    style={{ color: '#666' }}
+                  >
+                    เมนู ({unavailableMenus.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(expandedSections.menu ? unavailableMenus : unavailableMenus.slice(0, 4)).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px solid #2a2a2a',
+                        }}
+                      >
+                        <span
+                          className="text-sm font-medium"
+                          style={{ 
+                            color: '#666', 
+                            textDecoration: 'line-through' 
+                          }}
+                        >
+                          {item.name}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                          style={{
+                            backgroundColor: '#2a1a1a',
+                            color: '#ff6b6b',
+                            border: '1px solid #3a2020',
+                          }}
+                        >
+                          หมด
+                        </span>
+                      </div>
+                    ))}
+                    
+                    {/* ปุ่ม expand/collapse */}
+                    {unavailableMenus.length > 4 && (
+                      <button
+                        onClick={() => toggleSection('menu')}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px dashed #C67C4E40',
+                          color: '#C67C4E',
+                        }}
+                      >
+                        {expandedSections.menu ? (
+                          <>
+                            <span className="text-sm font-medium">ซ่อน</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-medium">+{unavailableMenus.length - 4} เพิ่มเติม</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
+              {/* นมที่หมด */}
+              {unavailableMilk.length > 0 && (
+                <div>
+                  <p 
+                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                    style={{ color: '#666' }}
+                  >
+                    ชนิดนม ({unavailableMilk.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(expandedSections.milk ? unavailableMilk : unavailableMilk.slice(0, 4)).map((milk) => (
+                      <div
+                        key={milk.value}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px solid #2a2a2a',
+                        }}
+                      >
+                        <span
+                          className="text-sm font-medium"
+                          style={{ 
+                            color: '#666', 
+                            textDecoration: 'line-through' 
+                          }}
+                        >
+                          {milk.label}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                          style={{
+                            backgroundColor: '#2a1a1a',
+                            color: '#ff6b6b',
+                            border: '1px solid #3a2020',
+                          }}
+                        >
+                          หมด
+                        </span>
+                      </div>
+                    ))}
+                    
+                    {/* ปุ่ม expand/collapse */}
+                    {unavailableMilk.length > 4 && (
+                      <button
+                        onClick={() => toggleSection('milk')}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px dashed #C67C4E40',
+                          color: '#C67C4E',
+                        }}
+                      >
+                        {expandedSections.milk ? (
+                          <>
+                            <span className="text-sm font-medium">ซ่อน</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-medium">+{unavailableMilk.length - 4} เพิ่มเติม</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ท็อปปิ้งที่หมด */}
+              {unavailableToppings.length > 0 && (
+                <div>
+                  <p 
+                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                    style={{ color: '#666' }}
+                  >
+                    ท็อปปิ้ง ({unavailableToppings.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(expandedSections.topping ? unavailableToppings : unavailableToppings.slice(0, 4)).map((topping) => (
+                      <div
+                        key={topping.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px solid #2a2a2a',
+                        }}
+                      >
+                        <span
+                          className="text-sm font-medium"
+                          style={{ 
+                            color: '#666', 
+                            textDecoration: 'line-through' 
+                          }}
+                        >
+                          {topping.name}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                          style={{
+                            backgroundColor: '#2a1a1a',
+                            color: '#ff6b6b',
+                            border: '1px solid #3a2020',
+                          }}
+                        >
+                          หมด
+                        </span>
+                      </div>
+                    ))}
+                    
+                    {/* ปุ่ม expand/collapse */}
+                    {unavailableToppings.length > 4 && (
+                      <button
+                        onClick={() => toggleSection('topping')}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                        style={{
+                          backgroundColor: '#1a1a1a',
+                          border: '1px dashed #C67C4E40',
+                          color: '#C67C4E',
+                        }}
+                      >
+                        {expandedSections.topping ? (
+                          <>
+                            <span className="text-sm font-medium">ซ่อน</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-medium">+{unavailableToppings.length - 4} เพิ่มเติม</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ─── OrderForm เดิม ───────────────────────────── */}
         <div>

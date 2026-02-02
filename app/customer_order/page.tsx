@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Card, App, Carousel } from 'antd';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import OrderForm from '../../components/customer/OrderFrom';
-import { MILK_OPTIONS, TOPPINGS } from '@/data/menu';
 import { MenuItem, MilkOption, Topping } from '@/types/order';
+import { getMergedMilkOptions, getMergedToppings } from '@/utils/storageHelper';
 
 export default function OrderPage() {
   const router = useRouter();
@@ -23,6 +23,19 @@ export default function OrderPage() {
   const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
 
+  const [expandedSections, setExpandedSections] = useState({
+  menu: false,
+  milk: false,
+  topping: false,
+});
+
+const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
+  setExpandedSections(prev => ({
+    ...prev,
+    [section]: !prev[section]
+  }));
+};
+//https://unsplash.com/photos/a-coffee-maker-is-making-a-cup-of-coffee-A_90G6Ta56A
   // Promotion images
   const promotionImages = [
     {
@@ -45,23 +58,11 @@ export default function OrderPage() {
     }
   ];
 
-  // ─── โหลดข้อมูลจาก localStorage ────────────────────────────
+  // ─── โหลดข้อมูลจาก localStorage (แบบ merge) ────────────────────────────
   useEffect(() => {
-    // โหลดนม
-    const savedMilk = localStorage.getItem('milkOptions');
-    if (savedMilk) {
-      setMilkOptions(JSON.parse(savedMilk));
-    } else {
-      setMilkOptions(MILK_OPTIONS);
-    }
-
-    // โหลดท็อปปิ้ง
-    const savedToppings = localStorage.getItem('toppings');
-    if (savedToppings) {
-      setToppings(JSON.parse(savedToppings));
-    } else {
-      setToppings(TOPPINGS);
-    }
+    // โหลดและ merge ข้อมูล
+    setMilkOptions(getMergedMilkOptions());
+    setToppings(getMergedToppings());
 
     // ฟังการเปลี่ยนแปลงจาก storage event (เมื่อแท็บอื่นอัพเดท)
     const handleStorageChange = (e: StorageEvent) => {
@@ -199,112 +200,6 @@ export default function OrderPage() {
             ))}
           </Carousel>
         </div>
-
-        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง ─── */}
-        {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {/* เมนูที่หมด */}
-            {!menuLoading && unavailableMenus.length > 0 && (
-              unavailableMenus.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                  style={{
-                    backgroundColor: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
-                  }}
-                >
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: '#555', textDecoration: 'line-through' }}
-                  >
-                    {item.name}
-                  </span>
-                  <span
-                    className="px-1.5 rounded"
-                    style={{
-                      fontSize: '9px',
-                      lineHeight: '16px',
-                      backgroundColor: '#2a1a1a',
-                      color: '#a55',
-                      border: '1px solid #3a2020',
-                    }}
-                  >
-                    หมด
-                  </span>
-                </div>
-              ))
-            )}
-
-            {/* นมที่หมด (ยกเว้นนมสด) */}
-            {unavailableMilk.length > 0 && (
-              unavailableMilk.map((milk) => (
-                <div
-                  key={milk.value}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                  style={{
-                    backgroundColor: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
-                  }}
-                >
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: '#555', textDecoration: 'line-through' }}
-                  >
-                    {milk.label}
-                  </span>
-                  <span
-                    className="px-1.5 rounded"
-                    style={{
-                      fontSize: '9px',
-                      lineHeight: '16px',
-                      backgroundColor: '#2a1a1a',
-                      color: '#a55',
-                      border: '1px solid #3a2020',
-                    }}
-                  >
-                    หมด
-                  </span>
-                </div>
-              ))
-            )}
-
-            {/* ท็อปปิ้งที่หมด */}
-            {unavailableToppings.length > 0 && (
-              unavailableToppings.map((topping) => (
-                <div
-                  key={topping.id}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                  style={{
-                    backgroundColor: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
-                  }}
-                >
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: '#555', textDecoration: 'line-through' }}
-                  >
-                    {topping.name}
-                  </span>
-                  <span
-                    className="px-1.5 rounded"
-                    style={{
-                      fontSize: '9px',
-                      lineHeight: '16px',
-                      backgroundColor: '#2a1a1a',
-                      color: '#a55',
-                      border: '1px solid #3a2020',
-                    }}
-                  >
-                    หมด
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
         <div className="flex justify-end mb-3">
           <button
             onClick={() => setShowMenu((prev) => !prev)}
@@ -324,7 +219,8 @@ export default function OrderPage() {
           </button>
         </div>
 
-        {/* ─── Hamburger panel — เมนู + นม + ท็อปปิ้ง ─── */}
+        
+        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
         {showMenu && (
           <div
             className="rounded-xl mb-4 overflow-hidden"
@@ -495,6 +391,269 @@ export default function OrderPage() {
             )}
           </div>
         )}
+
+        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง ─── */}
+          {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
+            <div 
+              className="mb-6 rounded-xl overflow-hidden"
+              style={{
+                backgroundColor: '#141414',
+                border: '1px solid #2a2a2a',
+              }}
+            >
+              {/* Header */}
+              <div 
+                className="px-4 py-3"
+                style={{
+                  backgroundColor: '#1a1a1a',
+                  borderBottom: '1px solid #2a2a2a',
+                }}
+              >
+                <h3 
+                  className="text-sm font-semibold flex items-center gap-2"
+                  style={{ color: '#C67C4E' }}
+                >
+                  <svg 
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    />
+                  </svg>
+                  รายการที่หมดแล้ววันนี้
+                </h3>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* เมนูที่หมด */}
+                {!menuLoading && unavailableMenus.length > 0 && (
+                  <div>
+                    <p 
+                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                      style={{ color: '#666' }}
+                    >
+                      เมนู ({unavailableMenus.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(expandedSections.menu ? unavailableMenus : unavailableMenus.slice(0, 4)).map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px solid #2a2a2a',
+                          }}
+                        >
+                          <span
+                            className="text-sm font-medium"
+                            style={{ 
+                              color: '#666', 
+                              textDecoration: 'line-through' 
+                            }}
+                          >
+                            {item.name}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{
+                              backgroundColor: '#2a1a1a',
+                              color: '#ff6b6b',
+                              border: '1px solid #3a2020',
+                            }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                      
+                      {/* ปุ่ม expand/collapse */}
+                      {unavailableMenus.length > 4 && (
+                        <button
+                          onClick={() => toggleSection('menu')}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px dashed #C67C4E40',
+                            color: '#C67C4E',
+                          }}
+                        >
+                          {expandedSections.menu ? (
+                            <>
+                              <span className="text-sm font-medium">ซ่อน</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium">+{unavailableMenus.length - 4} เพิ่มเติม</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* นมที่หมด */}
+                {unavailableMilk.length > 0 && (
+                  <div>
+                    <p 
+                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                      style={{ color: '#666' }}
+                    >
+                      ชนิดนม ({unavailableMilk.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(expandedSections.milk ? unavailableMilk : unavailableMilk.slice(0, 4)).map((milk) => (
+                        <div
+                          key={milk.value}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px solid #2a2a2a',
+                          }}
+                        >
+                          <span
+                            className="text-sm font-medium"
+                            style={{ 
+                              color: '#666', 
+                              textDecoration: 'line-through' 
+                            }}
+                          >
+                            {milk.label}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{
+                              backgroundColor: '#2a1a1a',
+                              color: '#ff6b6b',
+                              border: '1px solid #3a2020',
+                            }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                      
+                      {/* ปุ่ม expand/collapse */}
+                      {unavailableMilk.length > 4 && (
+                        <button
+                          onClick={() => toggleSection('milk')}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px dashed #C67C4E40',
+                            color: '#C67C4E',
+                          }}
+                        >
+                          {expandedSections.milk ? (
+                            <>
+                              <span className="text-sm font-medium">ซ่อน</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium">+{unavailableMilk.length - 4} เพิ่มเติม</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ท็อปปิ้งที่หมด */}
+                {unavailableToppings.length > 0 && (
+                  <div>
+                    <p 
+                      className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
+                      style={{ color: '#666' }}
+                    >
+                      ท็อปปิ้ง ({unavailableToppings.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(expandedSections.topping ? unavailableToppings : unavailableToppings.slice(0, 4)).map((topping) => (
+                        <div
+                          key={topping.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px solid #2a2a2a',
+                          }}
+                        >
+                          <span
+                            className="text-sm font-medium"
+                            style={{ 
+                              color: '#666', 
+                              textDecoration: 'line-through' 
+                            }}
+                          >
+                            {topping.name}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{
+                              backgroundColor: '#2a1a1a',
+                              color: '#ff6b6b',
+                              border: '1px solid #3a2020',
+                            }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                      
+                      {/* ปุ่ม expand/collapse */}
+                      {unavailableToppings.length > 4 && (
+                        <button
+                          onClick={() => toggleSection('topping')}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
+                          style={{
+                            backgroundColor: '#1a1a1a',
+                            border: '1px dashed #C67C4E40',
+                            color: '#C67C4E',
+                          }}
+                        >
+                          {expandedSections.topping ? (
+                            <>
+                              <span className="text-sm font-medium">ซ่อน</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium">+{unavailableToppings.length - 4} เพิ่มเติม</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+
 
         {/* ─── OrderForm เดิม ───────────────────────────── */}
         <div>

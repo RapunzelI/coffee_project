@@ -5,7 +5,7 @@ import { Card, Spin, Modal, App, Switch, Divider, Tabs } from 'antd';
 import OrderList from '../../components/store/OrderList';
 import MenuSelector from '../../components/store/MenuSelector';
 import { Order, CartItem, MenuItem, MilkOption, Topping } from '@/types/order';
-import { MILK_OPTIONS, TOPPINGS } from '@/data/menu';
+import { getMergedMilkOptions, getMergedToppings } from '@/utils/storageHelper';
 
 export default function AdminPage() {
   const { message } = App.useApp();
@@ -22,25 +22,11 @@ export default function AdminPage() {
   const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
 
-  // ─── โหลดข้อมูลจาก localStorage ────────────────────────────
+  // ─── โหลดข้อมูลจาก localStorage (ใช้ merge function) ────────────────────────────
   useEffect(() => {
-    // โหลดนม
-    const savedMilk = localStorage.getItem('milkOptions');
-    if (savedMilk) {
-      setMilkOptions(JSON.parse(savedMilk));
-    } else {
-      setMilkOptions(MILK_OPTIONS);
-      localStorage.setItem('milkOptions', JSON.stringify(MILK_OPTIONS));
-    }
-
-    // โหลดท็อปปิ้ง
-    const savedToppings = localStorage.getItem('toppings');
-    if (savedToppings) {
-      setToppings(JSON.parse(savedToppings));
-    } else {
-      setToppings(TOPPINGS);
-      localStorage.setItem('toppings', JSON.stringify(TOPPINGS));
-    }
+    // โหลดและ merge ข้อมูล
+    setMilkOptions(getMergedMilkOptions());
+    setToppings(getMergedToppings());
   }, []);
 
   // ─── ดึง orders จาก API ─────────────────────────────────────
@@ -118,12 +104,6 @@ export default function AdminPage() {
     
     message.success(available ? 'เปิดนมแล้ว' : 'ปิดนมแล้ว');
     
-    // TODO: เมื่อมี API แล้วให้เรียก API ด้วย
-    // await fetch('/api/options/milk', {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ value: milkValue, available }),
-    // });
   };
 
   // ─── เปิด/ปิดท็อปปิ้ง (บันทึกลง localStorage) ────────────────
@@ -135,13 +115,7 @@ export default function AdminPage() {
     localStorage.setItem('toppings', JSON.stringify(updatedToppings));
     
     message.success(available ? 'เปิดท็อปปิ้งแล้ว' : 'ปิดท็อปปิ้งแล้ว');
-    
-    // TODO: เมื่อมี API แล้วให้เรียก API ด้วย
-    // await fetch('/api/options/topping', {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ id: toppingId, available }),
-    // });
+
   };
 
   // ─── อัพเดทสถานะ order ──────────────────────────────────────
@@ -319,9 +293,6 @@ export default function AdminPage() {
               );
             })}
           </div>
-          <p className="text-xs text-gray-500 mt-3">
-            * นมสดเป็น base ของเมนู ปิดไม่ได้
-          </p>
         </div>
       ),
     },
@@ -439,3 +410,9 @@ export default function AdminPage() {
     </div>
   );
 }
+
+//อเมริกาโน่ไม่ต้องใส่นมไม่ใช่หรอ ? ค่อยไปแก้
+// แล้วก็มี แก้หน้า admin ให้แยกการจัดการออเดอร์ กลับ 
+// การจัดการเมนูต่างๆ หน้าจะต้องปรับ UXUI ให้ใช้งานง่ายกว่านี้หน่อยในหน้า admin 
+// ออใช่มีรายงาน Dashboard รายได้ในแต่ละวันด้วย 
+// แล้วก็ ถ้าไม่ขี้เกียจก็ทำ login เพื่อจะเก็บรายการที่เคยสั่งเเอาสั่งซ้ำได้ด้วย 

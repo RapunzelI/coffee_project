@@ -1,5 +1,5 @@
 import { CartItem } from '@/types/order';
-import { MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/constants/menu';
+import { MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/data/menu';
 
 export const calculateItemPrice = (item: CartItem): number => {
   const typePrice = MENU_TYPES.find(t => t.value === item.type)?.price || 0;

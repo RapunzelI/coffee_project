@@ -38,7 +38,7 @@ export interface MenuType {
 }
 
 export interface MilkOption {
-  value: 'fresh' | 'oat' | 'almond' | 'soy';
+  value: 'fresh' | 'oat' | 'almond' | 'soy' | 'coconut' | 'lowfat';
   label: string;
   price: number;
   available: boolean; // เพิ่มสำหรับเปิด/ปิดนม

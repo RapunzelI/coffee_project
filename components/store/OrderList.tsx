@@ -25,7 +25,10 @@ export default function OrderList({
 
   if (!hasOrders) {
     return (
-      <Card className="text-center p-10">
+      <Card className="text-center p-10" 
+        style={{
+        borderColor: '#404040',
+              }}>
         <p className="text-gray-400">ไม่มีออเดอร์</p>
       </Card>
     );

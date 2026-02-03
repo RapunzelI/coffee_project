@@ -3,7 +3,7 @@
 import { Button, List, Tag } from 'antd';
 import { CartItem } from '@/types/order';
 import { calculateItemPrice } from '@/utils/priceCalculator';
-import { MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/constants/menu';
+import { MENU_TYPES, MILK_OPTIONS, TOPPINGS } from '@/data/menu';
 
 interface CartListProps {
   items: CartItem[];

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Spin, message,App } from 'antd';
+import { Spin,App } from 'antd';
 import OrderStatus from '../../../components/customer/OrderStatus';
 import { Order } from '@/types/order';
 

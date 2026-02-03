@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, App, Carousel } from 'antd';
+import { Card, App, Carousel, Tabs } from 'antd';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import OrderForm from '../../components/customer/OrderFrom';
 import { MenuItem, MilkOption, Topping } from '@/types/order';
@@ -22,20 +22,6 @@ export default function OrderPage() {
   // นมและท็อปปิ้ง (โหลดจาก localStorage)
   const [milkOptions, setMilkOptions] = useState<MilkOption[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
-
-  // State สำหรับ expand/collapse แต่ละ section
-  const [expandedSections, setExpandedSections] = useState({
-    menu: false,
-    milk: false,
-    topping: false,
-  });
-
-  const toggleSection = (section: 'menu' | 'milk' | 'topping') => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
 
   // Promotion images
   const promotionImages = [
@@ -176,41 +162,6 @@ export default function OrderPage() {
           </h1>
           <p className="text-gray-400">สั่งกาแฟสดใหม่ทุกวัน</p>
         </div>
-
-        {/* ─── Promotion Carousel ─── */}
-        <div className="mb-6">
-          <Carousel 
-            autoplay 
-            autoplaySpeed={3000}
-            dots={{ className: 'custom-dots' }}
-            effect="fade"
-          >
-            {promotionImages.map((promo) => (
-              <div key={promo.id}>
-                <div
-                  className="relative rounded-xl overflow-hidden"
-                  style={{
-                    height: '180px',
-                    background: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url(${promo.image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                >
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      {promo.title}
-                    </h3>
-                    <p className="text-white text-sm opacity-90">
-                      {promo.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Carousel>
-        </div>
-
-        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
         <div className="flex justify-end mb-3">
           <button
             onClick={() => setShowMenu((prev) => !prev)}
@@ -402,264 +353,133 @@ export default function OrderPage() {
           </div>
         )}
 
-        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง (กล่องใหญ่สวยงาม) ─── */}
-        {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
-          <div 
-            className="mb-6 rounded-xl overflow-hidden"
-            style={{
-              backgroundColor: '#141414',
-              border: '1px solid #2a2a2a',
-            }}
+        {/* ─── Promotion Carousel ─── */}
+        <div className="mb-6">
+          <Carousel 
+            autoplay 
+            autoplaySpeed={3000}
+            dots={{ className: 'custom-dots' }}
+            effect="fade"
           >
-            {/* Header */}
-            <div 
-              className="px-4 py-3"
-              style={{
-                backgroundColor: '#1a1a1a',
-                borderBottom: '1px solid #2a2a2a',
-              }}
-            >
-              <h3 
-                className="text-sm font-semibold flex items-center gap-2"
-                style={{ color: '#C67C4E' }}
-              >
-                <svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+            {promotionImages.map((promo) => (
+              <div key={promo.id}>
+                <div
+                  className="relative rounded-xl overflow-hidden"
+                  style={{
+                    height: '180px',
+                    background: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url(${promo.image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-                  />
-                </svg>
-                รายการที่หมดแล้ววันนี้
-              </h3>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {/* เมนูที่หมด */}
-              {!menuLoading && unavailableMenus.length > 0 && (
-                <div>
-                  <p 
-                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                    style={{ color: '#666' }}
-                  >
-                    เมนู ({unavailableMenus.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(expandedSections.menu ? unavailableMenus : unavailableMenus.slice(0, 4)).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px solid #2a2a2a',
-                        }}
-                      >
-                        <span
-                          className="text-sm font-medium"
-                          style={{ 
-                            color: '#666', 
-                            textDecoration: 'line-through' 
-                          }}
-                        >
-                          {item.name}
-                        </span>
-                        <span
-                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                          style={{
-                            backgroundColor: '#2a1a1a',
-                            color: '#ff6b6b',
-                            border: '1px solid #3a2020',
-                          }}
-                        >
-                          หมด
-                        </span>
-                      </div>
-                    ))}
-                    
-                    {/* ปุ่ม expand/collapse */}
-                    {unavailableMenus.length > 4 && (
-                      <button
-                        onClick={() => toggleSection('menu')}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px dashed #C67C4E40',
-                          color: '#C67C4E',
-                        }}
-                      >
-                        {expandedSections.menu ? (
-                          <>
-                            <span className="text-sm font-medium">ซ่อน</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-sm font-medium">+{unavailableMenus.length - 4} เพิ่มเติม</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
-                    )}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      {promo.title}
+                    </h3>
+                    <p className="text-white text-sm opacity-90">
+                      {promo.description}
+                    </p>
                   </div>
                 </div>
-              )}
+              </div>
+            ))}
+          </Carousel>
+        </div>
 
-              {/* นมที่หมด */}
-              {unavailableMilk.length > 0 && (
-                <div>
-                  <p 
-                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                    style={{ color: '#666' }}
-                  >
-                    ชนิดนม ({unavailableMilk.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(expandedSections.milk ? unavailableMilk : unavailableMilk.slice(0, 4)).map((milk) => (
-                      <div
-                        key={milk.value}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px solid #2a2a2a',
-                        }}
-                      >
-                        <span
-                          className="text-sm font-medium"
-                          style={{ 
-                            color: '#666', 
-                            textDecoration: 'line-through' 
-                          }}
-                        >
-                          {milk.label}
-                        </span>
-                        <span
-                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                          style={{
-                            backgroundColor: '#2a1a1a',
-                            color: '#ff6b6b',
-                            border: '1px solid #3a2020',
-                          }}
-                        >
-                          หมด
-                        </span>
-                      </div>
-                    ))}
-                    
-                    {/* ปุ่ม expand/collapse */}
-                    {unavailableMilk.length > 4 && (
-                      <button
-                        onClick={() => toggleSection('milk')}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px dashed #C67C4E40',
-                          color: '#C67C4E',
-                        }}
-                      >
-                        {expandedSections.milk ? (
-                          <>
-                            <span className="text-sm font-medium">ซ่อน</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-sm font-medium">+{unavailableMilk.length - 4} เพิ่มเติม</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+        {/* ─── ปุ่มเมนูทั้งหมด ─── */}
 
-              {/* ท็อปปิ้งที่หมด */}
-              {unavailableToppings.length > 0 && (
-                <div>
-                  <p 
-                    className="text-xs font-semibold mb-2.5 uppercase tracking-wider"
-                    style={{ color: '#666' }}
-                  >
-                    ท็อปปิ้ง ({unavailableToppings.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(expandedSections.topping ? unavailableToppings : unavailableToppings.slice(0, 4)).map((topping) => (
-                      <div
-                        key={topping.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px solid #2a2a2a',
-                        }}
-                      >
-                        <span
-                          className="text-sm font-medium"
-                          style={{ 
-                            color: '#666', 
-                            textDecoration: 'line-through' 
-                          }}
+
+        {/* ─── รายการที่หมด: เมนู + นม + ท็อปปิ้ง (Tabs card) ─── */}
+        {(unavailableMenus.length > 0 || unavailableMilk.length > 0 || unavailableToppings.length > 0) && (
+          <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a2a', backgroundColor: '#141414' }}>
+            <Tabs
+              defaultActiveKey="menu"
+              type="card"
+              size="small"
+              style={{ padding: '12px 16px 4px' }}
+              items={[
+                // ── เมนูที่หมด ──
+                ...((!menuLoading && unavailableMenus.length > 0) ? [{
+                  label: <span>เมนู <span style={{ color: '#a55', fontSize: '11px' }}>({unavailableMenus.length})</span></span>,
+                  key: 'menu',
+                  children: (
+                    <div className="flex flex-wrap gap-2 pb-2">
+                      {unavailableMenus.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                          style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
                         >
-                          {topping.name}
-                        </span>
-                        <span
-                          className="px-2 py-0.5 rounded-md text-xs font-semibold"
-                          style={{
-                            backgroundColor: '#2a1a1a',
-                            color: '#ff6b6b',
-                            border: '1px solid #3a2020',
-                          }}
+                          <span className="text-sm font-medium" style={{ color: '#666', textDecoration: 'line-through' }}>
+                            {item.name}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{ backgroundColor: '#2a1a1a', color: '#ff6b6b', border: '1px solid #3a2020' }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                }] : []),
+
+                // ── นมที่หมด ──
+                ...(unavailableMilk.length > 0 ? [{
+                  label: <span>ชนิดนม <span style={{ color: '#a55', fontSize: '11px' }}>({unavailableMilk.length})</span></span>,
+                  key: 'milk',
+                  children: (
+                    <div className="flex flex-wrap gap-2 pb-2">
+                      {unavailableMilk.map((milk) => (
+                        <div
+                          key={milk.value}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                          style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
                         >
-                          หมด
-                        </span>
-                      </div>
-                    ))}
-                    
-                    {/* ปุ่ม expand/collapse */}
-                    {unavailableToppings.length > 4 && (
-                      <button
-                        onClick={() => toggleSection('topping')}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:opacity-80"
-                        style={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px dashed #C67C4E40',
-                          color: '#C67C4E',
-                        }}
-                      >
-                        {expandedSections.topping ? (
-                          <>
-                            <span className="text-sm font-medium">ซ่อน</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-sm font-medium">+{unavailableToppings.length - 4} เพิ่มเติม</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                          <span className="text-sm font-medium" style={{ color: '#666', textDecoration: 'line-through' }}>
+                            {milk.label}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{ backgroundColor: '#2a1a1a', color: '#ff6b6b', border: '1px solid #3a2020' }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                }] : []),
+
+                // ── ท็อปปิ้งที่หมด ──
+                ...(unavailableToppings.length > 0 ? [{
+                  label: <span>ท็อปปิ้ง <span style={{ color: '#a55', fontSize: '11px' }}>({unavailableToppings.length})</span></span>,
+                  key: 'topping',
+                  children: (
+                    <div className="flex flex-wrap gap-2 pb-2">
+                      {unavailableToppings.map((topping) => (
+                        <div
+                          key={topping.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                          style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
+                        >
+                          <span className="text-sm font-medium" style={{ color: '#666', textDecoration: 'line-through' }}>
+                            {topping.name}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{ backgroundColor: '#2a1a1a', color: '#ff6b6b', border: '1px solid #3a2020' }}
+                          >
+                            หมด
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                }] : []),
+              ]}
+            />
           </div>
         )}
 
@@ -691,6 +511,36 @@ export default function OrderPage() {
       </div>
 
       <style jsx global>{`
+        /* ── Tabs (รายการที่หมด) dark override ── */
+        .ant-tabs-card .ant-tabs-nav .ant-tabs-tab {
+          background: transparent !important;
+          border-color: transparent !important;
+          color: #777 !important;
+          font-size: 12px !important;
+          padding: 6px 16px !important;
+          margin-bottom: -1px;
+        }
+        .ant-tabs-card .ant-tabs-nav .ant-tabs-tab-active {
+          background: #1a1a1a !important;
+          border-color: #2a2a2a !important;
+          border-bottom-color: #1a1a1a !important;
+          color: #d4d4d4 !important;
+        }
+        .ant-tabs-card .ant-tabs-nav .ant-tabs-tab:hover {
+          color: #aaa !important;
+          border-color: #333 !important;
+        }
+        .ant-tabs-card .ant-tabs-content-top {
+          border: 1px solid #2a2a2a;
+          border-top: none;
+          border-radius: 0 0 8px 8px;
+          background: #141414 !important;
+        }
+        .ant-tabs .ant-tabs-nav::before,
+        .ant-tabs .ant-tabs-nav::after {
+          border-bottom-color: #2a2a2a !important;
+        }
+
         .custom-dots li button {
           background: #404040 !important;
           height: 6px !important;
